@@ -1,0 +1,1397 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Outlast Trials — Mechanics Difficulty Index</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d10;
+      --panel: #12161c;
+      --panel-2: #171d25;
+      --text: #d9e1eb;
+      --muted: #9aa8b6;
+      --faint: #6f7d8a;
+      --border: #2a3441;
+      --accent-2: #e07964;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --focus: rgba(224, 121, 100, 0.32);
+      --tag-default-bg: rgba(43, 52, 64, 0.82);
+      --tag-default-border: #394656;
+      --tag-length-bg: rgba(93, 105, 121, 0.22);
+      --tag-length-border: #52606f;
+      --tag-inv-bg: rgba(176, 105, 32, 0.22);
+      --tag-inv-border: #bd792e;
+      --tag-inv-text: #ffd39b;
+      --tag-jam-bg: rgba(86, 95, 190, 0.26);
+      --tag-jam-border: #6973df;
+      --tag-jam-text: #c8cdff;
+      --tag-rig-bg: rgba(183, 63, 66, 0.25);
+      --tag-rig-border: #c75a57;
+      --tag-rig-text: #ffc4bd;
+      --tag-large-bg: rgba(88, 132, 110, 0.18);
+      --tag-large-border: #58906e;
+      --tag-large-text: #bdeccc;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(183, 63, 66, 0.13), transparent 34rem),
+        radial-gradient(circle at top right, rgba(89, 105, 129, 0.12), transparent 28rem),
+        var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.48;
+    }
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 12px 0 48px;
+    }
+    .tabs-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      margin: 0 0 18px;
+      padding: 10px 0;
+      background: linear-gradient(180deg, rgba(11, 13, 16, 0.98), rgba(11, 13, 16, 0.86) 72%, transparent);
+      backdrop-filter: blur(10px);
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+      gap: 8px;
+      overflow: visible;
+      padding: 4px 2px 10px;
+    }
+    .tab {
+      appearance: none;
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--muted);
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 0.93rem;
+      cursor: pointer;
+      white-space: normal;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, color 120ms ease;
+    }
+    .tab:hover {
+      transform: translateY(-1px);
+      color: var(--text);
+      border-color: #435166;
+      background: var(--panel-2);
+    }
+    .tab:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .tab.active {
+      color: #fff2ec;
+      background: linear-gradient(180deg, #913337, #6f252b);
+      border-color: #c75a57;
+    }
+    .map-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 0 0 14px;
+    }
+    h2 {
+      margin: 0;
+      font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+      letter-spacing: -0.02em;
+    }
+    .count {
+      color: var(--faint);
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .trial {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(23, 29, 37, 0.95), rgba(18, 22, 28, 0.95));
+      box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 120ms ease, box-shadow 120ms ease, outline-color 120ms ease;
+    }
+    .trial.selected {
+      outline: 3px solid var(--accent-2);
+      outline-offset: 3px;
+      border-color: var(--accent-2);
+      box-shadow:
+        0 18px 42px rgba(0,0,0,0.22),
+        0 0 0 1px rgba(224, 121, 100, 0.45),
+        0 0 26px rgba(224, 121, 100, 0.20);
+    }
+    .trial-title {
+      margin: 0;
+      padding: 15px 17px 7px;
+      font-size: 1.04rem;
+      line-height: 1.25;
+      letter-spacing: -0.01em;
+    }
+    .trial-title strong { color: #f4f0ea; }
+    .trial-title a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .trial-title a:hover,
+    .trial-title a:focus {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+    .trial-title a:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+      border-radius: 8px;
+    }
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 17px 8px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--tag-default-border);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--tag-default-bg);
+      color: #cbd5df;
+      font-size: 0.72rem;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .tag.length {
+      background: var(--tag-length-bg);
+      border-color: var(--tag-length-border);
+      color: #dbe4ee;
+    }
+    .tag.length-very-long {
+      background: rgba(183, 63, 66, 0.16);
+      border-color: rgba(199, 90, 87, 0.72);
+      color: #ffd1cb;
+    }
+    .tag.length-long {
+      background: rgba(176, 105, 32, 0.15);
+      border-color: rgba(189, 121, 46, 0.65);
+      color: #ffd7a4;
+    }
+    .tag.inventory {
+      background: var(--tag-inv-bg);
+      border-color: var(--tag-inv-border);
+      color: var(--tag-inv-text);
+      font-weight: 700;
+    }
+    .tag.jammer {
+      background: var(--tag-jam-bg);
+      border-color: var(--tag-jam-border);
+      color: var(--tag-jam-text);
+      font-weight: 700;
+    }
+    .tag.rig {
+      background: var(--tag-rig-bg);
+      border-color: var(--tag-rig-border);
+      color: var(--tag-rig-text);
+      font-weight: 800;
+    }
+    .tag.large {
+      background: var(--tag-large-bg);
+      border-color: var(--tag-large-border);
+      color: var(--tag-large-text);
+    }
+    ul {
+      margin: 0;
+      padding: 0 17px 17px 35px;
+    }
+    li {
+      margin: 7px 0;
+      color: var(--text);
+    }
+    li::marker { color: var(--accent-2); }
+    .highlight {
+      color: #ffd2c4;
+      font-weight: 700;
+    }
+    @media (max-width: 860px) {
+      .shell {
+        width: min(100vw - 20px, 1180px);
+        padding-top: 8px;
+      }
+      .grid { grid-template-columns: 1fr; }
+      .map-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .tabs { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+      .tab { padding: 9px 10px; font-size: 0.86rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="tabs-wrap" aria-label="Map tabs">
+      <div class="tabs" id="tabs"></div>
+    </nav>
+    <section id="content" aria-live="polite"></section>
+  </main>
+  <script>
+    const maps = [
+      {
+            "map": "Police Station",
+            "trials": [
+                  {
+                        "name": "Kill the Snitch",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Large Objects",
+                              "Push Objective",
+                              "Generator",
+                              "Symbol-Key Search",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Push-cart objective: escort the Snitch chair through multiple gate checkpoints.",
+                              "Generator phase: Large Object gas cans, fusebox/electric-panel puzzles, noisy cranking.",
+                              "Standard symbol-key corpse search.",
+                              "Finale under attack: electrocution levers while Coyle interrupts."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Kill_the_Snitch"
+                  },
+                  {
+                        "name": "Cancel the Autopsy",
+                        "tags": [
+                              "Solo: Medium",
+                              "Symbol-Key Search",
+                              "Search Objective"
+                        ],
+                        "bullets": [
+                              "Standard symbol-key corpse search across basement sectors.",
+                              "Wrong corpse search shocks you.",
+                              "Distinct sector threats: Berserker / Big Grunt / Hard Grunt-style area pressure.",
+                              "Finale pressure after sending bodies into the grinder."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Cancel_the_Autopsy"
+                  },
+                  {
+                        "name": "Sabotage the Lockdown",
+                        "tags": [
+                              "Solo: Short",
+                              "Large Objects",
+                              "Generator",
+                              "Linear Route"
+                        ],
+                        "bullets": [
+                              "Large Object gas can carried through basement sectors.",
+                              "One generator at end: refuel + electric-panel puzzle.",
+                              "Coyle tracks forward through sectors and does not easily lose pressure.",
+                              "Linear basement routing makes bad doors/chases costly."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Sabotage_the_Lockdown"
+                  },
+                  {
+                        "name": "Release the Prisoners",
+                        "tags": [
+                              "Solo: Medium",
+                              "Split Spawn",
+                              "Special Gates"
+                        ],
+                        "bullets": [
+                              "Split/sealed spawn: each player starts in a separate Police Station section.",
+                              "Find section key, then reach Security Room.",
+                              "Remote Control Gates / separated routing.",
+                              "Coyle patrols central Security Room hall during regroup/finale."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Release_the_Prisoners"
+                  },
+                  {
+                        "name": "Teach the Police Officer",
+                        "tags": [
+                              "Solo: Long",
+                              "Large Objects",
+                              "Film Reel",
+                              "Special Gates",
+                              "Multi-Floor Navigation"
+                        ],
+                        "bullets": [
+                              "Film reel objective; Large Object reel carry back to Auditorium.",
+                              "Multi-floor navigation: upper floors, ground floor, basement.",
+                              "Key-chain room search.",
+                              "Proximity Gates throughout.",
+                              "Co-op assist areas / vertical routing add navigation complexity."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Teach_the_Police_Officer"
+                  },
+                  {
+                        "name": "Eliminate the Past",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Timed Objective",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Timed objective: destroy as many document boxes as possible.",
+                              "Large Object document/record boxes carried to grinder.",
+                              "Timer scales harsher with more players.",
+                              "Finale enemy density depends on how many boxes you destroyed."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Eliminate_the_Past"
+                  },
+                  {
+                        "name": "Seize the Narcotics",
+                        "tags": [
+                              "Solo: Medium",
+                              "Split Spawn",
+                              "Inventory Pressure",
+                              "Lockdown Gates",
+                              "Timed Escape",
+                              "Limited-Use Gates",
+                              "Jammer Recommended"
+                        ],
+                        "bullets": [
+                              "Split/sealed spawn across four Police Station sections.",
+                              "Inventory pressure: drug packets.",
+                              "Limited-use Lockdown Gates are core mechanic; gates permanently close after repeated passes.",
+                              "Timed escape after final lockdown override.",
+                              "Coyle patrols the shared Security Room access hall."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Seize_the_Narcotics"
+                  }
+            ]
+      },
+      {
+            "map": "Orphanage",
+            "trials": [
+                  {
+                        "name": "Cleanse the Orphans",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Large Objects",
+                              "Film Reel",
+                              "Generator",
+                              "Frequency Boxes",
+                              "Special Gates"
+                        ],
+                        "bullets": [
+                              "Frequency-box tuning in Dorms.",
+                              "Timed dorm gates / route gates around bedrooms.",
+                              "Large Object film reels for classroom projector swaps.",
+                              "Generator phase with Large Object gas cans.",
+                              "Saw-handle key search."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Cleanse_the_Orphans"
+                  },
+                  {
+                        "name": "Feed the Children",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Wide Routing"
+                        ],
+                        "bullets": [
+                              "Large Object bleach jugs.",
+                              "Bleach collection and soup-pouring loop.",
+                              "Wide routing through kitchen/laundry/chapel-side areas.",
+                              "Gooseberry pressure during returns and final serving."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Feed_the_Children"
+                  },
+                  {
+                        "name": "Foster the Orphans",
+                        "tags": [
+                              "Solo: Medium",
+                              "Frequency Boxes",
+                              "Special Gates"
+                        ],
+                        "bullets": [
+                              "Frequency-box tuning is the main objective.",
+                              "Multi-room Dorm search with Gooseberry pressure.",
+                              "Gate/path routing around tuned sections.",
+                              "Navigation + tuning difficulty."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Foster_the_Orphans"
+                  },
+                  {
+                        "name": "Gather the Children of God",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Sound Gates",
+                              "Wire-Following"
+                        ],
+                        "bullets": [
+                              "Sound Detector Gates.",
+                              "Follow wires to button switches.",
+                              "Large Object child/mannequin upper halves carried back to van.",
+                              "Big Grunt / Gooseberry pressure on child delivery routes."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Gather_the_Children_of_God"
+                  },
+                  {
+                        "name": "Reunite the Family",
+                        "tags": [
+                              "Solo: Long",
+                              "Large Objects",
+                              "Generator",
+                              "Symbol-Key Search",
+                              "Route Complexity"
+                        ],
+                        "bullets": [
+                              "Large Object child/mannequin carry.",
+                              "Generator/gas-can phase; Large Object gas can.",
+                              "Electric-panel/fusebox-style interactions.",
+                              "Standard symbol-key/search mechanics.",
+                              "Kitchen / chapel / basement routing can be awkward."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Reunite_the_Family"
+                  }
+            ]
+      },
+      {
+            "map": "Fun Park",
+            "trials": [
+                  {
+                        "name": "Grind the Bad Apples",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Push Objective",
+                              "Ticket Collection",
+                              "Heart Targets",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Push-cart/boat objective through Root Canal.",
+                              "Ticket collection / redemption.",
+                              "Throw hearts at targets.",
+                              "Water-level / barrier / power routing.",
+                              "Finale pressure while finishing the grinder/boat objective."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Grind_the_Bad_Apples"
+                  },
+                  {
+                        "name": "Punish the Miscreants",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Wire-Following"
+                        ],
+                        "bullets": [
+                              "Find children/mannequin parts in color-coded Fun Park sections.",
+                              "Large Object child/mannequin carry to grinder.",
+                              "Wire-following to switches.",
+                              "Gooseberry pressure during return trips."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Punish_the_Miscreants"
+                  },
+                  {
+                        "name": "Open the Gates",
+                        "tags": [
+                              "Solo: Short-Medium",
+                              "Special Gates",
+                              "Wire-Following"
+                        ],
+                        "bullets": [
+                              "Gate-opening challenge built around power modules / gate progression.",
+                              "Wire-following and dark-route navigation.",
+                              "Repeated special gate pressure.",
+                              "Routing and gate pressure are the main difficulty."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Open_the_Gates"
+                  },
+                  {
+                        "name": "Drill the Futterman",
+                        "tags": [
+                              "Solo: Medium",
+                              "Split Routes",
+                              "Heart Targets",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Split-route pressure through Canal A/B style paths.",
+                              "Heavy throwing-heart target objective.",
+                              "Both canal routes must be completed before regroup.",
+                              "Finale button/kill sequence under Gooseberry pressure."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Drill_the_Futterman"
+                  },
+                  {
+                        "name": "Deface the Futtermans",
+                        "tags": [
+                              "Solo: Medium",
+                              "Heart Targets",
+                              "Timed Objective",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Throw hearts at targets, including awkward or moving targets.",
+                              "Target logic / limited heart access causes backtracking.",
+                              "Battery/switch routing around Diner/Castle.",
+                              "Timed/pressured finale while Gooseberry hunts."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Deface_the_Futtermans"
+                  },
+                  {
+                        "name": "Redeem your Freedom",
+                        "tags": [
+                              "Solo: Medium",
+                              "Ticket Collection",
+                              "Multi-Trip Objective"
+                        ],
+                        "bullets": [
+                              "Ticket collection / redemption loop.",
+                              "Multi-trip routing to ticket booth.",
+                              "Objective pressure ramps as tickets are collected.",
+                              "Enemies increasingly interfere with dispenser/booth routes."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Redeem_your_Freedom"
+                  },
+                  {
+                        "name": "Beguile the Children",
+                        "tags": [
+                              "Solo: Long",
+                              "Large Objects",
+                              "Film Reel",
+                              "Code/Symbol Puzzle",
+                              "Multi-Floor Navigation"
+                        ],
+                        "bullets": [
+                              "Film reel / projector puzzle in Illusion Castle.",
+                              "Large Object film reels moved via trade windows.",
+                              "Code/symbol memorization from projectors.",
+                              "Wrong final code can down/kill you.",
+                              "Multi-floor search: ground floor, second floor, basement."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Beguile_the_Children"
+                  }
+            ]
+      },
+      {
+            "map": "Courthouse",
+            "trials": [
+                  {
+                        "name": "Vindicate the Guilty",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Large Objects",
+                              "Blacklight",
+                              "Rig Disabling",
+                              "Locator/Microwave Kill",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Blacklight code puzzle in Jury Room.",
+                              "Puzzle boxes reveal severed head evidence; Large Object head carry.",
+                              "Large Object acid buckets; extra penalty because acid splashes on sprint/jump/vault/damage.",
+                              "Rig Disabling gates/sections appear around evidence-related routes.",
+                              "Tracker + Microwave Trigger witness-kill objective.",
+                              "Finale execution pressure with Coyle around."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Vindicate_the_Guilty"
+                  },
+                  {
+                        "name": "Escape the Courthouse",
+                        "tags": [
+                              "Solo: Long",
+                              "Locator/Microwave Kill",
+                              "Rig Disabling",
+                              "Special Gates",
+                              "Finale Ambush"
+                        ],
+                        "bullets": [
+                              "Tracker / Microwave Trigger scapegoat kill chain.",
+                              "Must cook scapegoats multiple times to open sections.",
+                              "Section 3 forces you through a rig-disabling gate/section.",
+                              "Berserker guards Lobby during rig-disabled section.",
+                              "Coyle ambushes outside during escape."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Escape_the_Courthouse"
+                  },
+                  {
+                        "name": "Destroy the Evidence",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Timed Gates",
+                              "Rig Disabling"
+                        ],
+                        "bullets": [
+                              "Large Object acid buckets.",
+                              "Timed Gates are built into the challenge.",
+                              "Rig Disabling gates are present around evidence-room routes.",
+                              "Acid delivery to evidence/courtroom objective.",
+                              "Coyle pressure around the central delivery route."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Destroy_the_Evidence"
+                  },
+                  {
+                        "name": "Tilt the Scales of Justice",
+                        "tags": [
+                              "Solo: Long",
+                              "Large Objects",
+                              "Blacklight",
+                              "Code/Symbol Puzzle",
+                              "Timed Puzzle"
+                        ],
+                        "bullets": [
+                              "Large Object severed heads/body-part evidence.",
+                              "Blacklight code puzzles.",
+                              "Timed puzzle pressure / wrong-code punishment.",
+                              "Multi-wing Courthouse routing."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Tilt_the_Scales_of_Justice"
+                  },
+                  {
+                        "name": "Fuel the Release",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Generator",
+                              "Special Gates"
+                        ],
+                        "bullets": [
+                              "Three generator-style fuel steps.",
+                              "Large Object gas cans.",
+                              "Rolling-gate progression and randomized Library/Evidence Storage route.",
+                              "Special-gate routing around fuel access paths."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Fuel_the_Release"
+                  },
+                  {
+                        "name": "Sentence the Prosecuted",
+                        "tags": [
+                              "Solo: Medium",
+                              "Code/Symbol Puzzle",
+                              "Decoder/Projection",
+                              "Rig Disabling"
+                        ],
+                        "bullets": [
+                              "Decoder / projection / symbol-code hunt.",
+                              "Find and input sentence/code components.",
+                              "Rig Disabling gates can appear at wing entrances.",
+                              "Judicial Wing / office navigation challenge.",
+                              "Main difficulty is code/search routing."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Sentence_the_Prosecuted"
+                  }
+            ]
+      },
+      {
+            "map": "Toy Factory",
+            "trials": [
+                  {
+                        "name": "Pervert the Futterman",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Large Objects",
+                              "Heavy Object Gates",
+                              "Serial/Box Search",
+                              "Production Chain"
+                        ],
+                        "bullets": [
+                              "Conveyor / compactor routing.",
+                              "Large Object heavy boxes: trash, wax, erotic toys, lubricant-style boxes.",
+                              "Heavy Object Gates / trade-window routing.",
+                              "Correct serial/label identification; wrong boxes can punish/explode.",
+                              "Multi-step production chain."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Pervert_the_Futterman"
+                  },
+                  {
+                        "name": "Crush the Sex Toys",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Large Objects",
+                              "Generator",
+                              "Blacklight",
+                              "Heavy Object Gates",
+                              "Serial/Box Search"
+                        ],
+                        "bullets": [
+                              "Faulty generators power blacklight/code work.",
+                              "Large Object heavy boxes.",
+                              "Correct-box identification; wrong boxes can explode.",
+                              "Heavy Object Gates / conveyor routing.",
+                              "Gooseberry and Ex-Pop pressure around compactor routes."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Crush_the_Sex_Toys"
+                  },
+                  {
+                        "name": "Incinerate the Sex Toys",
+                        "tags": [
+                              "Solo: Long",
+                              "Split Spawn",
+                              "Push Objective",
+                              "Route Unlocking"
+                        ],
+                        "bullets": [
+                              "Split/pair spawn pressure in shipping docks.",
+                              "Push-cart objective; one or two carts depending on group size.",
+                              "Repeated route unlocking / key-search mechanics.",
+                              "Gooseberry can pressure basement/cart routes."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Incinerate_the_Sex_Toys"
+                  },
+                  {
+                        "name": "Shutdown the Factory",
+                        "tags": [
+                              "Solo: Medium",
+                              "Wire-Following",
+                              "Lockdown Sections",
+                              "Co-op Doors"
+                        ],
+                        "bullets": [
+                              "Electric panel + paired button-switch objectives.",
+                              "Wire-following navigation.",
+                              "Sections lock down after objectives.",
+                              "Co-op smash doors / shortcut routing matter.",
+                              "Alarm doors can worsen enemy density."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Shutdown_the_Factory"
+                  },
+                  {
+                        "name": "Fumigate the Factory",
+                        "tags": [
+                              "Solo: Medium",
+                              "Valve/Pipe Routing",
+                              "Chemical/Gas Hazard"
+                        ],
+                        "bullets": [
+                              "Pipe-following and valve routing.",
+                              "Multiple valves across factory sections.",
+                              "Chemical/gas areas expand as valves open.",
+                              "Escape pressure after fumigation progresses.",
+                              "Main difficulty is pathing through hazard areas."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Fumigate_the_Factory"
+                  },
+                  {
+                        "name": "Flatten the Foreman",
+                        "tags": [
+                              "Solo: Medium",
+                              "Microwave Gates",
+                              "Timed Escalation",
+                              "Timed Escape",
+                              "Limited-Use Gates",
+                              "Jammer Recommended"
+                        ],
+                        "bullets": [
+                              "Limited-use Microwave Trigger / special gate progression.",
+                              "Security override key search.",
+                              "Escalating difficulty/timer pressure increases enemy density.",
+                              "Timed escape after crushing the Foreman."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Flatten_the_Foreman"
+                  }
+            ]
+      },
+      {
+            "map": "The Docks",
+            "trials": [
+                  {
+                        "name": "Poison the Medicine",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Push Objective",
+                              "Large Objects",
+                              "Inventory Pressure",
+                              "Heavy Object Gates",
+                              "Code/Symbol Puzzle",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Push-cart objective to Train Depot and back.",
+                              "Large Object drug packages/bricks; Heavy Object Gates force trade-window routing.",
+                              "Decoder/projection code puzzles for drug-package boxes.",
+                              "Large Object poison canisters; carrying too long suffocates/damages you.",
+                              "Inventory pressure: final drug packets placed in mules.",
+                              "Long finale pressure: crank/cut/package drugs, then stuff mules while Franco hunts."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Poison_the_Medicine"
+                  },
+                  {
+                        "name": "Empty the Vault",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Large Objects",
+                              "Code/Symbol Puzzle",
+                              "Vault Puzzle"
+                        ],
+                        "bullets": [
+                              "Decoder/projection code hunt.",
+                              "Vault-code puzzle boxes.",
+                              "Large Object loot/cash boxes.",
+                              "Carry loot back to deposit point.",
+                              "Franco pressure after vault access."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Empty_the_Vault"
+                  },
+                  {
+                        "name": "Poison the Cattle",
+                        "tags": [
+                              "Solo: Medium",
+                              "Large Objects",
+                              "Chemical/Gas Hazard"
+                        ],
+                        "bullets": [
+                              "Large Object poison canisters.",
+                              "Chemical Area / suffocation pressure.",
+                              "Search multiple canisters across Chem-Co / storage routes.",
+                              "Franco patrol pressure during returns."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Poison_the_Cattle"
+                  },
+                  {
+                        "name": "Stash the Contraband",
+                        "tags": [
+                              "Solo: Medium",
+                              "Inventory Pressure",
+                              "Multi-Deposit Objective"
+                        ],
+                        "bullets": [
+                              "Inventory pressure: drug packets/contraband packets.",
+                              "Hide packets in corpse barrels / mule-style deposit points.",
+                              "Wide Docks routing across Casino/Lab/Train-side areas.",
+                              "Franco pressure during smuggling routes."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Stash_the_Contraband"
+                  },
+                  {
+                        "name": "Cook the Informant",
+                        "tags": [
+                              "Solo: Medium",
+                              "Microwave Gates",
+                              "Locator/Microwave Kill",
+                              "Limited-Use Gates",
+                              "Jammer Recommended"
+                        ],
+                        "bullets": [
+                              "Limited-use Microwave Trigger / special gate routing.",
+                              "Microwave Target gates create route-choice pressure.",
+                              "Choose which gates to open versus route around.",
+                              "Locator/microwave-style target kill objective."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Cook_the_Informant"
+                  }
+            ]
+      },
+      {
+            "map": "Downtown",
+            "trials": [
+                  {
+                        "name": "Pleasure the Prosecutor",
+                        "tags": [
+                              "Solo: Long",
+                              "Ticket Collection",
+                              "Capture Protocol",
+                              "Lever Reactivation",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "VIP ticket acquisition.",
+                              "Capture Protocol zones: stay in zone to fill meter.",
+                              "Reactivation levers at 30% / 60% checkpoints.",
+                              "Capture zones have high-alert enemies and dense traps.",
+                              "Finale mannequin swap / execution sequence with Franco pressure."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Pleasure_the_Prosecutor"
+                  },
+                  {
+                        "name": "Kidnap the Mistress",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Large Objects",
+                              "Frequency Boxes",
+                              "Code/Logic Puzzle"
+                        ],
+                        "bullets": [
+                              "Frequency-box clue hunt: body / letter / number / room-style logic.",
+                              "Follow wires from clues to frequency boxes.",
+                              "Identify correct mannequin; wrong mannequin punishes/explodes.",
+                              "Large Object correct mannequin carry to van.",
+                              "Franco patrol pressure during extraction."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Kidnap_the_Mistress"
+                  },
+                  {
+                        "name": "Spread the Disease",
+                        "tags": [
+                              "Solo: Medium",
+                              "Inventory Pressure",
+                              "Capture Protocol",
+                              "Remote Gates",
+                              "Lever Reactivation"
+                        ],
+                        "bullets": [
+                              "Capture Protocol dispenser zones.",
+                              "Inventory pressure: STD bottles / disease bottles.",
+                              "Randomized bottle locations across Streets/Sewers.",
+                              "Remote Control Gates can trap routing.",
+                              "Re-pull switches at progress checkpoints."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Spread_the_Disease"
+                  },
+                  {
+                        "name": "Traffick the Product",
+                        "tags": [
+                              "Solo: Long",
+                              "Push Objective",
+                              "Large Objects",
+                              "Heavy Object Gates",
+                              "Multi-Trip Objective"
+                        ],
+                        "bullets": [
+                              "Push-cart objective with drug product.",
+                              "Large Object drug bricks/packages and/or cash/briefcase-style carries.",
+                              "Heavy Object Gates / trade-window routing.",
+                              "Deliver product to customers, return profits.",
+                              "Final cart/briefcase delivery under Franco pressure."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Traffick_the_Product"
+                  }
+            ]
+      },
+      {
+            "map": "The Suburbs",
+            "trials": [
+                  {
+                        "name": "Liquidate the Union",
+                        "tags": [
+                              "Solo: Long",
+                              "Frequency Boxes",
+                              "Blacklight",
+                              "Code/Symbol Puzzle",
+                              "Escort Objective",
+                              "Heart/Sign Targets",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Frequency-box gate sequence.",
+                              "Symbol memorization / clue routing.",
+                              "Blacklight panic-room code puzzle.",
+                              "Escort Union Boss on proximity trolley/rail.",
+                              "Finale uses correct Safety Sign target logic before drowning/execution."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Liquidate_the_Union"
+                  },
+                  {
+                        "name": "Get Out the Vote",
+                        "tags": [
+                              "Solo: Long",
+                              "Escort Objective",
+                              "Blacklight",
+                              "Code/Symbol Puzzle",
+                              "Ticket/Vote Collection"
+                        ],
+                        "bullets": [
+                              "Proximity escort: move Candidate trolley by staying near it.",
+                              "Blacklight house-code puzzles.",
+                              "Move citizens/voters along tracks.",
+                              "Vote/ticket-style collection objective.",
+                              "Noisy trolley/citizen movement attracts enemies."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Get_Out_the_Vote"
+                  },
+                  {
+                        "name": "Disrupt the Neighborhood",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Generator",
+                              "Blacklight",
+                              "Frequency Boxes",
+                              "Special Gates"
+                        ],
+                        "bullets": [
+                              "Frequency gates across Manor / Rich District / High School.",
+                              "Faulty generators power blacklights.",
+                              "Blacklight reveals frequency symbols.",
+                              "Multiple generator + symbol-sequence steps.",
+                              "Franco hunts during neighborhood unlock loops."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Disrupt_the_Neighborhood"
+                  },
+                  {
+                        "name": "Eliminate the Legacy",
+                        "tags": [
+                              "Solo: Medium",
+                              "Heart/Sign Targets",
+                              "Target Logic",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Throw hearts / throwables at correct Safety Signs.",
+                              "Target logic changes after each correct hit.",
+                              "Multi-stage progression through neighborhood zones.",
+                              "Finale/execution in garage/car area under Franco pressure."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Eliminate_the_Legacy"
+                  }
+            ]
+      },
+      {
+            "map": "Shopping Mall",
+            "trials": [
+                  {
+                        "name": "Kill the Politician",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Inventory Pressure",
+                              "Large Objects",
+                              "Fuse Routing",
+                              "Dark/Closed Routes",
+                              "Code/Math Puzzle",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Inventory pressure: fuses.",
+                              "Fuse removal darkens/seals stores and immediately deploys Ex-Pop.",
+                              "Some fuses can be used for shortcuts, creating routing decisions.",
+                              "Department Store spending objective with Large Object product boxes; heavier warehouse boxes slow/limit movement.",
+                              "Valve/math pressure puzzle in backrooms.",
+                              "Finale under attack: pump pressure + spray acid guns while Kress Twins defend Politician."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Kill_the_Politician"
+                  },
+                  {
+                        "name": "Investigate the Minotaur",
+                        "tags": [
+                              "Solo: Long",
+                              "Inventory Pressure",
+                              "Large Objects",
+                              "Fuse Routing",
+                              "Dark/Closed Routes",
+                              "Heavy Object Gates",
+                              "Co-op Doors"
+                        ],
+                        "bullets": [
+                              "Inventory pressure: fuses.",
+                              "Fuse-routing puzzle through dark/closed mall sections.",
+                              "Large Object evidence box carry back to Loading Docks.",
+                              "Heavy Object Gates / fuse-box gate reroutes.",
+                              "Co-op smash/shortcut routing matters because challenge version closes many normal paths."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Investigate_the_Minotaur"
+                  },
+                  {
+                        "name": "Fabricate the Scandal",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Large Objects",
+                              "Photo/Body Matching",
+                              "Dark/Closed Routes"
+                        ],
+                        "bullets": [
+                              "Large Object mannequin torsos/body pieces.",
+                              "Match torsos/photos/lower bodies correctly.",
+                              "Photo/evidence collection and deposit.",
+                              "Challenge mall is darker and more closed-off than the main trial.",
+                              "Kress Twins pressure while routes are restricted."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Fabricate_the_Scandal"
+                  }
+            ]
+      },
+      {
+            "map": "Resort",
+            "trials": [
+                  {
+                        "name": "Despoil the Auction",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Inventory Pressure",
+                              "Large Objects",
+                              "Cold Hazard",
+                              "Animal-Key Routing",
+                              "Blacklight",
+                              "Gem Search",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Cold/freezing pressure; red generator/heaters provide warmth.",
+                              "Inventory pressure: animal keys — Stag / Owl / Wolf / Bear-style progression.",
+                              "Portable blacklights for gem/value search.",
+                              "Gem/currency collection creates routing/value decisions.",
+                              "Cranks found in Catacombs for final Lot destruction; Large Object / carry-style objective pressure.",
+                              "Finale: remove paddles, place cranks, tear apart the Lot."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Despoil_the_Auction"
+                  },
+                  {
+                        "name": "Solve the Murder",
+                        "tags": [
+                              "Solo: Long",
+                              "Cold Hazard",
+                              "Blacklight",
+                              "Deduction Puzzle",
+                              "Generator"
+                        ],
+                        "bullets": [
+                              "Deduction puzzle: identify killer, weapon, and crime scene.",
+                              "Portable blacklight blood-trail tracking.",
+                              "Faulty generators / heaters to fight cold.",
+                              "Code input into puzzle boxes.",
+                              "Liliya repeatedly hunts while you search the Resort."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Solve_the_Murder"
+                  }
+            ]
+      },
+      {
+            "map": "Television Studio",
+            "trials": [
+                  {
+                        "name": "Silence the Idol",
+                        "tags": [
+                              "Solo: Very Long",
+                              "Inventory Pressure",
+                              "Escort Objective",
+                              "Prop Puzzle",
+                              "Blacklight",
+                              "Code/Symbol Puzzle",
+                              "Battery/Power Step",
+                              "Finale Pressure"
+                        ],
+                        "bullets": [
+                              "Escort/trolley objective across multiple studios.",
+                              "Pushable prop/stage-layout puzzles; props must face correct directions.",
+                              "Blacklight Spotlight clue search for switchboard codes.",
+                              "Studio 3 power-station/battery recharge step.",
+                              "Inventory pressure: cassettes in Studio 4.",
+                              "Wrong cassette can explode.",
+                              "Stationary noisy cassette converter while Kress Twins/Ex-Pop converge.",
+                              "Finale pressure: lower approval rating, then finish Idol execution."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Silence_the_Idol"
+                  }
+            ]
+      },
+      {
+            "map": "Solo Rebirth",
+            "trials": [
+                  {
+                        "name": "Farewell Mansion",
+                        "tags": [
+                              "Solo: Long",
+                              "Large Objects",
+                              "Sound Gates",
+                              "Symbol-Key Search",
+                              "Frequency Boxes",
+                              "Generator",
+                              "Film Reel",
+                              "Prime Asset Trap Mix",
+                              "Finale Chase"
+                        ],
+                        "bullets": [
+                              "Solo-only mansion sequence built around six objectives: boxes, keys, frequencies, generator, film reel, and escape.",
+                              "Large Object boxes are returned to their matching rooms past Sound Gates.",
+                              "Randomized TV key clues; search matching symbol corpses in the Courtyard and avoid wrong bodies.",
+                              "Tune three frequency transmitters across the unlocked mansion sectors.",
+                              "Generator phase: Large Object gas can, switch panel, and crank step in the right-side pool/generator sector.",
+                              "Film reel / projector objective; press the projector button after swapping the reel to unlock the front door.",
+                              "Prime Assets can drop in through elevators and their traps can appear throughout the mansion.",
+                              "Final escape includes a forced chase route before the rebirth ending."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Rebirth"
+                  }
+            ]
+      },
+      {
+            "map": "Waste Tunnel",
+            "trials": [
+                  {
+                        "name": "Escape the Lies",
+                        "tags": [
+                              "Solo: Medium-Long",
+                              "Special/Variable",
+                              "Prime Asset Trap Mix",
+                              "Unstable Routing"
+                        ],
+                        "bullets": [
+                              "Loyalty-test structure: return to Easterman, kill Amelia, escape.",
+                              "Can combine all Prime Asset trap types at once.",
+                              "Jaeger can appear here even in lower/core contexts.",
+                              "Special/unstable routing rather than a normal environment flow.",
+                              "Officially added with Project Judas / March 24, 2026."
+                        ],
+                        "url": "https://outlast.fandom.com/wiki/Escape_the_Lies"
+                  }
+            ]
+      }
+];
+    const tabsEl = document.getElementById('tabs');
+    const contentEl = document.getElementById('content');
+
+    function tagClass(tag) {
+      const lower = tag.toLowerCase();
+      const classes = ['tag'];
+      if (lower.startsWith('solo:')) {
+        classes.push('length');
+        if (lower.includes('very long')) classes.push('length-very-long');
+        else if (lower.includes('long')) classes.push('length-long');
+      }
+      if (tag === 'Inventory Pressure') classes.push('inventory');
+      if (tag === 'Jammer Recommended') classes.push('jammer');
+      if (tag === 'Rig Disabling') classes.push('rig');
+      if (tag === 'Large Objects') classes.push('large');
+      return classes.join(' ');
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function emphasizeMechanics(text) {
+      const phrases = [
+        'Inventory pressure',
+        'Inventory Pressure',
+        'Large Object',
+        'Large Objects',
+        'Sound Detector Gates',
+        'Sound Gates',
+        'Remote Control Gates',
+        'Lockdown Gates',
+        'Timed Gates',
+        'Proximity Gates',
+        'Heavy Object Gates',
+        'Jammer Recommended',
+        'Limited-use',
+        'Limited-Use Gates',
+        'Rig Disabling',
+        'rig-disabling gate/section',
+        'Split/sealed spawn',
+        'Push-cart',
+        'blacklight',
+        'Blacklight',
+        'Film reel',
+        'Final escape',
+        'Prime Assets'
+      ];
+      let safe = escapeHtml(text);
+      for (const phrase of phrases) {
+        const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        safe = safe.replace(new RegExp(escapedPhrase, 'g'), `<span class="highlight">${phrase}</span>`);
+      }
+      return safe;
+    }
+
+    function renderMap(index) {
+      const selected = maps[index];
+      document.querySelectorAll('.tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+        tab.setAttribute('aria-selected', i === index ? 'true' : 'false');
+      });
+      const cards = selected.trials.map(trial => `
+        <article class="trial" data-card-id="${escapeHtml(`${selected.map}::${trial.name}`)}" tabindex="0" aria-label="${escapeHtml(`${selected.map} - ${trial.name}`)}">
+          <h3 class="trial-title"><strong><a href="${escapeHtml(trial.url)}" target="_blank" rel="noopener noreferrer">${selected.map} - ${trial.name}</a></strong></h3>
+          <div class="tags" aria-label="Trial tags">
+            ${trial.tags.map(tag => `<span class="${tagClass(tag)}">${escapeHtml(tag)}</span>`).join('')}
+          </div>
+          <ul>
+            ${trial.bullets.map(item => `<li>${emphasizeMechanics(item)}</li>`).join('')}
+          </ul>
+        </article>
+      `).join('');
+      contentEl.innerHTML = `
+        <div class="map-header">
+          <h2>${selected.map}</h2>
+          <span class="count">${selected.trials.length} trial${selected.trials.length === 1 ? '' : 's / challenges'}</span>
+        </div>
+        <div class="grid">${cards}</div>
+      `;
+
+      const selectedCardId = localStorage.getItem('outlast-selected-trial-card');
+      if (selectedCardId) {
+        const selectedCard = contentEl.querySelector(`.trial[data-card-id="${CSS.escape(selectedCardId)}"]`);
+        if (selectedCard) selectedCard.classList.add('selected');
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function initTabs() {
+      tabsEl.innerHTML = maps.map((entry, index) => `
+        <button
+          class="tab"
+          type="button"
+          role="tab"
+          aria-selected="${index === 0 ? 'true' : 'false'}"
+          data-index="${index}"
+        >
+          ${entry.map}
+        </button>
+      `).join('');
+      tabsEl.addEventListener('click', event => {
+        const button = event.target.closest('button[data-index]');
+        if (!button) return;
+        renderMap(Number(button.dataset.index));
+      });
+      tabsEl.addEventListener('keydown', event => {
+        const current = document.activeElement;
+        if (!current?.matches?.('button[data-index]')) return;
+        const currentIndex = Number(current.dataset.index);
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % maps.length;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + maps.length) % maps.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = maps.length - 1;
+        if (nextIndex !== currentIndex) {
+          event.preventDefault();
+          const nextButton = tabsEl.querySelector(`button[data-index="${nextIndex}"]`);
+          nextButton.focus();
+          renderMap(nextIndex);
+        }
+      });
+      contentEl.addEventListener('click', event => {
+        const card = event.target.closest('.trial');
+        if (!card) return;
+
+        contentEl.querySelectorAll('.trial.selected').forEach(existing => {
+          if (existing !== card) existing.classList.remove('selected');
+        });
+
+        card.classList.toggle('selected');
+
+        if (card.classList.contains('selected')) {
+          localStorage.setItem('outlast-selected-trial-card', card.dataset.cardId);
+        } else {
+          localStorage.removeItem('outlast-selected-trial-card');
+        }
+      });
+
+      contentEl.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const card = event.target.closest('.trial');
+        if (!card || event.target.closest('a')) return;
+        event.preventDefault();
+        card.click();
+      });
+
+      renderMap(0);
+    }
+    initTabs();
+  </script>
+</body>
+</html>
