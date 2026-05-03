@@ -66,7 +66,7 @@
     }
     .tabs {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
       gap: 8px;
       overflow: visible;
       padding: 4px 2px 10px;
@@ -102,6 +102,32 @@
       color: #fff2ec;
       background: linear-gradient(180deg, #913337, #6f252b);
       border-color: #c75a57;
+    }
+    .search-wrap {
+      position: relative;
+      min-width: 0;
+      grid-column: span 3;
+    }
+    .trial-search {
+      width: 100%;
+      height: 100%;
+      min-height: 41px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 0.93rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    }
+    .trial-search::placeholder {
+      color: var(--faint);
+    }
+    .trial-search:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+      border-color: #435166;
     }
     .map-header {
       display: flex;
@@ -254,8 +280,12 @@
         flex-direction: column;
         gap: 3px;
       }
-      .tabs { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); }
+      .tabs { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
       .tab { padding: 9px 10px; font-size: 0.86rem; }
+      .trial-search { min-height: 42px; font-size: 0.9rem; }
+    }
+    @media (max-width: 380px) {
+      .search-wrap { grid-column: span 2; }
     }
   </style>
 </head>
@@ -263,6 +293,7 @@
   <main class="shell">
     <nav class="tabs-wrap" aria-label="Map tabs">
       <div class="tabs" id="tabs"></div>
+      <datalist id="trial-search-options"></datalist>
     </nav>
     <section id="content" aria-live="polite"></section>
   </main>
@@ -1253,6 +1284,7 @@
 ];
     const tabsEl = document.getElementById('tabs');
     const contentEl = document.getElementById('content');
+    const searchOptionsEl = document.getElementById('trial-search-options');
 
     function tagClass(tag) {
       const lower = tag.toLowerCase();
@@ -1274,6 +1306,24 @@
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
+    }
+
+    function getSearchItems() {
+      return maps.flatMap((entry, mapIndex) =>
+        entry.trials.map(trial => ({
+          label: `${entry.map} - ${trial.name}`,
+          mapIndex,
+          cardId: `${entry.map}::${trial.name}`
+        }))
+      );
+    }
+
+    function jumpToTrial(label) {
+      const item = getSearchItems().find(result => result.label.toLowerCase() === label.trim().toLowerCase());
+      if (!item) return;
+
+      localStorage.setItem('outlast-selected-trial-card', item.cardId);
+      renderMap(item.mapIndex, item.cardId);
     }
 
     function emphasizeMechanics(text) {
@@ -1311,7 +1361,7 @@
       return safe;
     }
 
-    function renderMap(index) {
+    function renderMap(index, scrollToCardId = null) {
       const selected = maps[index];
       document.querySelectorAll('.tab').forEach((tab, i) => {
         tab.classList.toggle('active', i === index);
@@ -1336,13 +1386,18 @@
         <div class="grid">${cards}</div>
       `;
 
-      const selectedCardId = localStorage.getItem('outlast-selected-trial-card');
+      const selectedCardId = scrollToCardId || localStorage.getItem('outlast-selected-trial-card');
+      let selectedCard = null;
       if (selectedCardId) {
-        const selectedCard = contentEl.querySelector(`.trial[data-card-id="${CSS.escape(selectedCardId)}"]`);
+        selectedCard = contentEl.querySelector(`.trial[data-card-id="${CSS.escape(selectedCardId)}"]`);
         if (selectedCard) selectedCard.classList.add('selected');
       }
 
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (scrollToCardId && selectedCard) {
+        selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
 
     function initTabs() {
@@ -1356,7 +1411,34 @@
         >
           ${entry.map}
         </button>
-      `).join('');
+      `).join('') + `
+        <div class="search-wrap">
+          <input
+            id="trial-search"
+            class="trial-search"
+            type="search"
+            list="trial-search-options"
+            placeholder="Search trials..."
+            autocomplete="off"
+            aria-label="Search trials and challenges"
+          />
+        </div>
+      `;
+
+      const searchItems = getSearchItems();
+      searchOptionsEl.innerHTML = searchItems
+        .map(item => `<option value="${escapeHtml(item.label)}"></option>`)
+        .join('');
+
+      const searchInput = document.getElementById('trial-search');
+      searchInput.addEventListener('change', event => {
+        jumpToTrial(event.target.value);
+      });
+      searchInput.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        jumpToTrial(event.target.value);
+      });
       tabsEl.addEventListener('click', event => {
         const button = event.target.closest('button[data-index]');
         if (!button) return;
