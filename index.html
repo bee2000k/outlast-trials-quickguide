@@ -1409,7 +1409,7 @@
           aria-selected="${index === 0 ? 'true' : 'false'}"
           data-index="${index}"
         >
-          ${entry.map}
+          ${entry.map === 'Television Studio' ? 'TV Studio' : entry.map}
         </button>
       `).join('') + `
         <div class="search-wrap">
