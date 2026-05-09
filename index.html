@@ -1462,7 +1462,7 @@
           aria-selected="${index === 0 ? 'true' : 'false'}"
           data-index="${index}"
         >
-          ${entry.map === 'Television Studio' ? 'TV Studio' : entry.map}
+          ${entry.map === 'Television Studio' ? 'TV Studio' : entry.map === 'Shopping Mall' ? 'Mall' : entry.map === 'The Suburbs' ? 'Suburbs' : entry.map === 'Waste Tunnel' ? 'Escape' : entry.map === 'The Docks' ? 'Docks' : entry.map}
         </button>
       `).join('') + `
         <div class="search-wrap">
