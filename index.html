@@ -160,7 +160,8 @@
       cursor: pointer;
     }
     .search-suggestion:hover,
-    .search-suggestion:focus {
+    .search-suggestion:focus,
+    .search-suggestion.active {
       background: rgba(224, 121, 100, 0.14);
       outline: none;
     }
@@ -1480,20 +1481,51 @@
       const searchItems = getSearchItems();
       const searchInput = document.getElementById('trial-search');
       const suggestionsEl = document.getElementById('trial-search-suggestions');
+      let currentMatches = [];
+      let activeSuggestionIndex = -1;
+
+      function setActiveSuggestion(index) {
+        const buttons = Array.from(suggestionsEl.querySelectorAll('.search-suggestion'));
+        if (!buttons.length) {
+          activeSuggestionIndex = -1;
+          return;
+        }
+
+        activeSuggestionIndex = (index + buttons.length) % buttons.length;
+
+        buttons.forEach((button, buttonIndex) => {
+          const isActive = buttonIndex === activeSuggestionIndex;
+          button.classList.toggle('active', isActive);
+          button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        buttons[activeSuggestionIndex].scrollIntoView({ block: 'nearest' });
+      }
 
       function hideSuggestions() {
         suggestionsEl.classList.remove('open');
         suggestionsEl.innerHTML = '';
+        currentMatches = [];
+        activeSuggestionIndex = -1;
+      }
+
+      function chooseSearchItem(item) {
+        if (!item) return;
+        searchInput.value = item.label;
+        hideSuggestions();
+        jumpToTrial(item);
       }
 
       function renderSuggestions(query) {
         const cleaned = query.trim().toLowerCase();
+        activeSuggestionIndex = -1;
+
         if (!cleaned) {
           hideSuggestions();
           return;
         }
 
-        const matches = searchItems
+        currentMatches = searchItems
           .filter(item =>
             item.label.toLowerCase().includes(cleaned) ||
             item.name.toLowerCase().includes(cleaned) ||
@@ -1501,17 +1533,18 @@
           )
           .slice(0, 8);
 
-        if (!matches.length) {
+        if (!currentMatches.length) {
           suggestionsEl.innerHTML = '<div class="search-empty">No matches</div>';
           suggestionsEl.classList.add('open');
           return;
         }
 
-        suggestionsEl.innerHTML = matches.map((item, index) => `
+        suggestionsEl.innerHTML = currentMatches.map((item, index) => `
           <button
             type="button"
             class="search-suggestion"
             role="option"
+            aria-selected="false"
             data-index="${index}"
           >
             ${escapeHtml(item.label)}
@@ -1521,16 +1554,15 @@
         suggestionsEl.classList.add('open');
 
         suggestionsEl.querySelectorAll('.search-suggestion').forEach((button, index) => {
-          const item = matches[index];
+          const item = currentMatches[index];
 
           const choose = event => {
             event.preventDefault();
             event.stopPropagation();
-            searchInput.value = item.label;
-            hideSuggestions();
-            jumpToTrial(item);
+            chooseSearchItem(item);
           };
 
+          button.addEventListener('mouseenter', () => setActiveSuggestion(index));
           button.addEventListener('touchstart', choose, { passive: false });
           button.addEventListener('pointerdown', choose);
           button.addEventListener('click', choose);
@@ -1550,15 +1582,30 @@
           hideSuggestions();
           return;
         }
+
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          if (!suggestionsEl.classList.contains('open')) renderSuggestions(event.target.value);
+          if (currentMatches.length) setActiveSuggestion(activeSuggestionIndex + 1);
+          return;
+        }
+
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (!suggestionsEl.classList.contains('open')) renderSuggestions(event.target.value);
+          if (currentMatches.length) setActiveSuggestion(activeSuggestionIndex - 1);
+          return;
+        }
+
         if (event.key !== 'Enter') return;
         event.preventDefault();
 
-        const item = findSearchItem(event.target.value);
-        if (item) {
-          searchInput.value = item.label;
-          hideSuggestions();
-          jumpToTrial(item);
-        }
+        const item =
+          activeSuggestionIndex >= 0
+            ? currentMatches[activeSuggestionIndex]
+            : findSearchItem(event.target.value);
+
+        if (item) chooseSearchItem(item);
       });
 
       document.addEventListener('pointerdown', event => {
