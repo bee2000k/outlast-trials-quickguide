@@ -129,6 +129,46 @@
       outline-offset: 2px;
       border-color: #435166;
     }
+    .search-suggestions {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      z-index: 50;
+      display: none;
+      max-height: min(320px, 60vh);
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(18, 22, 28, 0.98);
+      box-shadow: 0 18px 42px rgba(0,0,0,0.42);
+      padding: 6px;
+    }
+    .search-suggestions.open {
+      display: block;
+    }
+    .search-suggestion {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text);
+      padding: 9px 10px;
+      font: inherit;
+      font-size: 0.88rem;
+      text-align: left;
+      cursor: pointer;
+    }
+    .search-suggestion:hover,
+    .search-suggestion:focus {
+      background: rgba(224, 121, 100, 0.14);
+      outline: none;
+    }
+    .search-empty {
+      padding: 9px 10px;
+      color: var(--faint);
+      font-size: 0.86rem;
+    }
     .map-header {
       display: flex;
       align-items: baseline;
@@ -293,7 +333,6 @@
   <main class="shell">
     <nav class="tabs-wrap" aria-label="Map tabs">
       <div class="tabs" id="tabs"></div>
-      <datalist id="trial-search-options"></datalist>
     </nav>
     <section id="content" aria-live="polite"></section>
   </main>
@@ -1284,7 +1323,6 @@
 ];
     const tabsEl = document.getElementById('tabs');
     const contentEl = document.getElementById('content');
-    const searchOptionsEl = document.getElementById('trial-search-options');
 
     function tagClass(tag) {
       const lower = tag.toLowerCase();
@@ -1312,18 +1350,32 @@
       return maps.flatMap((entry, mapIndex) =>
         entry.trials.map(trial => ({
           label: `${entry.map} - ${trial.name}`,
+          name: trial.name,
+          map: entry.map,
           mapIndex,
           cardId: `${entry.map}::${trial.name}`
         }))
       );
     }
 
-    function jumpToTrial(label) {
-      const item = getSearchItems().find(result => result.label.toLowerCase() === label.trim().toLowerCase());
-      if (!item) return;
+    function findSearchItem(value) {
+      const query = value.trim().toLowerCase();
+      if (!query) return null;
+      const items = getSearchItems();
+      return (
+        items.find(item => item.label.toLowerCase() === query) ||
+        items.find(item => item.name.toLowerCase() === query) ||
+        items.find(item => item.label.toLowerCase().includes(query))
+      );
+    }
+
+    function jumpToTrial(valueOrItem) {
+      const item = typeof valueOrItem === 'string' ? findSearchItem(valueOrItem) : valueOrItem;
+      if (!item) return false;
 
       localStorage.setItem('outlast-selected-trial-card', item.cardId);
       renderMap(item.mapIndex, item.cardId);
+      return true;
     }
 
     function emphasizeMechanics(text) {
@@ -1417,27 +1469,100 @@
             id="trial-search"
             class="trial-search"
             type="search"
-            list="trial-search-options"
             placeholder="Search trials..."
             autocomplete="off"
             aria-label="Search trials and challenges"
           />
+          <div id="trial-search-suggestions" class="search-suggestions" role="listbox" aria-label="Trial search suggestions"></div>
         </div>
       `;
 
       const searchItems = getSearchItems();
-      searchOptionsEl.innerHTML = searchItems
-        .map(item => `<option value="${escapeHtml(item.label)}"></option>`)
-        .join('');
-
       const searchInput = document.getElementById('trial-search');
-      searchInput.addEventListener('change', event => {
-        jumpToTrial(event.target.value);
+      const suggestionsEl = document.getElementById('trial-search-suggestions');
+
+      function hideSuggestions() {
+        suggestionsEl.classList.remove('open');
+        suggestionsEl.innerHTML = '';
+      }
+
+      function renderSuggestions(query) {
+        const cleaned = query.trim().toLowerCase();
+        if (!cleaned) {
+          hideSuggestions();
+          return;
+        }
+
+        const matches = searchItems
+          .filter(item =>
+            item.label.toLowerCase().includes(cleaned) ||
+            item.name.toLowerCase().includes(cleaned) ||
+            item.map.toLowerCase().includes(cleaned)
+          )
+          .slice(0, 8);
+
+        if (!matches.length) {
+          suggestionsEl.innerHTML = '<div class="search-empty">No matches</div>';
+          suggestionsEl.classList.add('open');
+          return;
+        }
+
+        suggestionsEl.innerHTML = matches.map((item, index) => `
+          <button
+            type="button"
+            class="search-suggestion"
+            role="option"
+            data-index="${index}"
+          >
+            ${escapeHtml(item.label)}
+          </button>
+        `).join('');
+
+        suggestionsEl.classList.add('open');
+
+        suggestionsEl.querySelectorAll('.search-suggestion').forEach((button, index) => {
+          const item = matches[index];
+
+          const choose = event => {
+            event.preventDefault();
+            event.stopPropagation();
+            searchInput.value = item.label;
+            hideSuggestions();
+            jumpToTrial(item);
+          };
+
+          button.addEventListener('touchstart', choose, { passive: false });
+          button.addEventListener('pointerdown', choose);
+          button.addEventListener('click', choose);
+        });
+      }
+
+      searchInput.addEventListener('input', event => {
+        renderSuggestions(event.target.value);
       });
+
+      searchInput.addEventListener('focus', event => {
+        renderSuggestions(event.target.value);
+      });
+
       searchInput.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+          hideSuggestions();
+          return;
+        }
         if (event.key !== 'Enter') return;
         event.preventDefault();
-        jumpToTrial(event.target.value);
+
+        const item = findSearchItem(event.target.value);
+        if (item) {
+          searchInput.value = item.label;
+          hideSuggestions();
+          jumpToTrial(item);
+        }
+      });
+
+      document.addEventListener('pointerdown', event => {
+        if (!event.target.closest('.search-wrap')) hideSuggestions();
       });
       tabsEl.addEventListener('click', event => {
         const button = event.target.closest('button[data-index]');
