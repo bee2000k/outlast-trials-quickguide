@@ -107,8 +107,42 @@
       position: relative;
       min-width: 0;
       grid-column: span 3;
+      display: flex;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .search-favorites-tab {
+      width: 42px;
+      min-width: 42px;
+      flex: 0 0 42px;
+      padding: 0;
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    .search-favorites-tab svg {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 28px;
+      height: 28px;
+      display: block;
+      pointer-events: none;
+      transform: translate(-50%, -50%) translateY(-0.75px);
+    }
+    .search-favorites-tab.active svg path {
+      fill: currentColor;
+    }
+    .search-favorites-tab.active {
+      color: #d4ebff;
+      background: rgba(70, 130, 190, 0.22);
+      border-color: rgba(105, 166, 220, 0.72);
     }
     .trial-search {
+      flex: 1 1 auto;
+      min-width: 0;
       width: 100%;
       height: 100%;
       min-height: 41px;
@@ -210,6 +244,14 @@
         0 0 0 1px rgba(224, 121, 100, 0.45),
         0 0 26px rgba(224, 121, 100, 0.20);
     }
+    #content.favorites-view .trial.selected {
+      outline-color: rgba(105, 166, 220, 0.9);
+      border-color: rgba(105, 166, 220, 0.72);
+      box-shadow:
+        0 18px 42px rgba(0,0,0,0.22),
+        0 0 0 1px rgba(105, 166, 220, 0.42),
+        0 0 26px rgba(70, 130, 190, 0.22);
+    }
     .trial-title {
       margin: 0;
       padding: 15px 17px 7px;
@@ -301,6 +343,97 @@
     .highlight {
       color: #ffd2c4;
       font-weight: 700;
+    }
+    .trial-heading {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 15px 17px 7px;
+    }
+    .trial-title {
+      flex: 1;
+      padding: 0;
+    }
+    .favorite-toggle {
+      appearance: none;
+      flex: 0 0 auto;
+      width: 20px;
+      height: 20px;
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(18, 22, 28, 0.72);
+      color: var(--faint);
+      font: inherit;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: transform 120ms ease, border-color 120ms ease, color 120ms ease, background 120ms ease;
+    }
+    .favorite-toggle:hover {
+      transform: translateY(-1px);
+      border-color: #bd792e;
+      color: #ffd39b;
+      background: rgba(176, 105, 32, 0.14);
+    }
+    .favorite-toggle:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .favorite-toggle.favorited {
+      border-color: #bd792e;
+      color: #ffd39b;
+      background: rgba(176, 105, 32, 0.22);
+    }
+    .favorite-toggle svg {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      display: block;
+      flex: 0 0 auto;
+      pointer-events: none;
+      transform: translate(-50%, -50%) translateY(-0.75px);
+    }
+    .favorite-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: -4px 0 14px;
+    }
+    .playlist-button {
+      appearance: none;
+      border: 1px solid rgba(105, 166, 220, 0.72);
+      border-radius: 999px;
+      background: rgba(70, 130, 190, 0.16);
+      color: #beddff;
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+    }
+    .playlist-button:hover {
+      border-color: rgba(130, 190, 245, 0.88);
+      background: rgba(70, 130, 190, 0.26);
+      color: #d4ebff;
+    }
+    .playlist-button:focus {
+      outline: 3px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .favorites-empty {
+      border: 1px dashed var(--border);
+      border-radius: 18px;
+      background: rgba(18, 22, 28, 0.72);
+      color: var(--muted);
+      padding: 18px;
+      line-height: 1.45;
     }
     @media (max-width: 860px) {
       .shell {
@@ -1326,6 +1459,14 @@
 ];
     const tabsEl = document.getElementById('tabs');
     const contentEl = document.getElementById('content');
+    const FAVORITES_KEY = 'outlast-favorite-trial-cards';
+    const FAVORITES_ORDER_KEY = 'outlast-favorite-playlist-order';
+    const SELECTED_CARD_KEY = 'outlast-selected-trial-card';
+    const SELECTED_FAVORITE_CARD_KEY = 'outlast-selected-favorite-trial-card';
+
+    let activeMapIndex = 0;
+    let activeView = 'map';
+    let favoritePlaylistOrder = getStoredFavoriteOrder();
 
     function tagClass(tag) {
       const lower = tag.toLowerCase();
@@ -1343,22 +1484,78 @@
     }
 
     function escapeHtml(text) {
-      return text
+      return String(text)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
     }
 
-    function getSearchItems() {
+    function getCardId(mapName, trialName) {
+      return `${mapName}::${trialName}`;
+    }
+
+    function getFavorites() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+        return new Set(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveFavorites(favorites) {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
+    }
+
+    function getStoredFavoriteOrder() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(FAVORITES_ORDER_KEY) || 'null');
+        return Array.isArray(parsed) ? parsed : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function saveFavoriteOrder(orderCardIds) {
+      if (orderCardIds?.length) {
+        localStorage.setItem(FAVORITES_ORDER_KEY, JSON.stringify(orderCardIds));
+      } else {
+        localStorage.removeItem(FAVORITES_ORDER_KEY);
+      }
+    }
+
+    function isFavorite(cardId) {
+      return getFavorites().has(cardId);
+    }
+    function favoriteStarIcon(favorited) {
+      const fill = favorited ? 'currentColor' : 'none';
+      return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3.7l2.55 5.17 5.7.83-4.13 4.02.98 5.68L12 16.72 6.9 19.4l.98-5.68L3.75 9.7l5.7-.83L12 3.7z" fill="${fill}" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      </svg>`;
+    }
+
+
+    function getAllTrialItems() {
       return maps.flatMap((entry, mapIndex) =>
         entry.trials.map(trial => ({
           label: `${entry.map} - ${trial.name}`,
           name: trial.name,
           map: entry.map,
           mapIndex,
-          cardId: `${entry.map}::${trial.name}`
+          trial,
+          cardId: getCardId(entry.map, trial.name)
         }))
       );
+    }
+
+    function getSearchItems() {
+      return getAllTrialItems().map(({ label, name, map, mapIndex, cardId }) => ({
+        label,
+        name,
+        map,
+        mapIndex,
+        cardId
+      }));
     }
 
     function findSearchItem(value) {
@@ -1372,18 +1569,29 @@
       );
     }
 
+    function setActiveTab(indexOrFavorites) {
+      document.querySelectorAll('.tab').forEach(tab => {
+        const isActive =
+          indexOrFavorites === 'favorites'
+            ? tab.dataset.favorites === 'true'
+            : tab.dataset.index === String(indexOrFavorites);
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+    }
+
     function jumpToTrial(valueOrItem) {
       const item = typeof valueOrItem === 'string' ? findSearchItem(valueOrItem) : valueOrItem;
       if (!item) return false;
 
-      localStorage.setItem('outlast-selected-trial-card', item.cardId);
+      localStorage.setItem(SELECTED_CARD_KEY, item.cardId);
       renderMap(item.mapIndex, item.cardId);
       return true;
     }
 
     function emphasizeMechanics(text) {
       const phrases = [
-        "Film reel",
+        'Film reel',
         'Inventory pressure',
         'Inventory Pressure',
         'Large Object',
@@ -1404,7 +1612,6 @@
         'Push-cart',
         'blacklight',
         'Blacklight',
-        'Film reel',
         'Final escape',
         'Prime Assets'
       ];
@@ -1417,15 +1624,21 @@
       return safe;
     }
 
-    function renderMap(index, scrollToCardId = null) {
-      const selected = maps[index];
-      document.querySelectorAll('.tab').forEach((tab, i) => {
-        tab.classList.toggle('active', i === index);
-        tab.setAttribute('aria-selected', i === index ? 'true' : 'false');
-      });
-      const cards = selected.trials.map(trial => `
-        <article class="trial" data-card-id="${escapeHtml(`${selected.map}::${trial.name}`)}" tabindex="0" aria-label="${escapeHtml(`${selected.map} - ${trial.name}`)}">
-          <h3 class="trial-title"><strong><a href="${escapeHtml(trial.url)}" target="_blank" rel="noopener noreferrer">${selected.map} - ${trial.name}</a></strong></h3>
+    function renderTrialCard(mapName, mapIndex, trial) {
+      const cardId = getCardId(mapName, trial.name);
+      const favorited = isFavorite(cardId);
+      return `
+        <article class="trial" data-card-id="${escapeHtml(cardId)}" data-map-index="${mapIndex}" tabindex="0" aria-label="${escapeHtml(`${mapName} - ${trial.name}`)}">
+          <div class="trial-heading">
+            <h3 class="trial-title"><strong><a href="${escapeHtml(trial.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(mapName)} - ${escapeHtml(trial.name)}</a></strong></h3>
+            <button
+              class="favorite-toggle${favorited ? ' favorited' : ''}"
+              type="button"
+              aria-pressed="${favorited ? 'true' : 'false'}"
+              aria-label="${favorited ? 'Remove from favorites' : 'Add to favorites'}: ${escapeHtml(mapName)} - ${escapeHtml(trial.name)}"
+              title="${favorited ? 'Remove from favorites' : 'Add to favorites'}"
+            >${favoriteStarIcon(favorited)}</button>
+          </div>
           <div class="tags" aria-label="Trial tags">
             ${trial.tags.map(tag => `<span class="${tagClass(tag)}">${escapeHtml(tag)}</span>`).join('')}
           </div>
@@ -1433,16 +1646,26 @@
             ${trial.bullets.map(item => `<li>${emphasizeMechanics(item)}</li>`).join('')}
           </ul>
         </article>
-      `).join('');
+      `;
+    }
+
+    function renderMap(index, scrollToCardId = null) {
+      activeView = 'map';
+      contentEl.classList.remove('favorites-view');
+      activeMapIndex = index;
+      const selected = maps[index];
+      setActiveTab(index);
+
+      const cards = selected.trials.map(trial => renderTrialCard(selected.map, index, trial)).join('');
       contentEl.innerHTML = `
         <div class="map-header">
-          <h2>${selected.map}</h2>
+          <h2>${escapeHtml(selected.map)}</h2>
           <span class="count">${selected.trials.length} trial${selected.trials.length === 1 ? '' : 's / challenges'}</span>
         </div>
         <div class="grid">${cards}</div>
       `;
 
-      const selectedCardId = scrollToCardId || localStorage.getItem('outlast-selected-trial-card');
+      const selectedCardId = scrollToCardId || localStorage.getItem(SELECTED_CARD_KEY);
       let selectedCard = null;
       if (selectedCardId) {
         selectedCard = contentEl.querySelector(`.trial[data-card-id="${CSS.escape(selectedCardId)}"]`);
@@ -1456,6 +1679,99 @@
       }
     }
 
+    function shuffleItems(items) {
+      const shuffled = [...items];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    function renderFavorites(orderCardIds = null) {
+      activeView = 'favorites';
+      contentEl.classList.add('favorites-view');
+      setActiveTab('favorites');
+
+      const favorites = getFavorites();
+      const allItems = getAllTrialItems();
+      let favoriteItems = allItems.filter(item => favorites.has(item.cardId));
+
+      const naturalFavoriteItems = [...favoriteItems];
+
+      if (orderCardIds?.length) {
+        const byId = new Map(favoriteItems.map(item => [item.cardId, item]));
+        const orderedItems = orderCardIds.map(id => byId.get(id)).filter(Boolean);
+        const orderedIds = new Set(orderedItems.map(item => item.cardId));
+        const missingItems = favoriteItems.filter(item => !orderedIds.has(item.cardId));
+        favoriteItems = [...orderedItems, ...missingItems];
+      }
+
+      const naturalOrderIds = naturalFavoriteItems.map(item => item.cardId);
+      const displayedOrderIds = favoriteItems.map(item => item.cardId);
+      const isNaturalOrder =
+        naturalOrderIds.length === displayedOrderIds.length &&
+        naturalOrderIds.every((id, index) => id === displayedOrderIds[index]);
+
+      const countText = `${favoriteItems.length} favorite${favoriteItems.length === 1 ? '' : 's'}`;
+      const actions = favoriteItems.length
+        ? `<div class="favorite-actions">
+            <button class="playlist-button" id="randomize-favorites" type="button">Randomize Favorites</button>
+            ${isNaturalOrder ? '' : '<button class="playlist-button" id="reset-favorites-order" type="button">Reset Order</button>'}
+          </div>`
+        : '';
+
+      const body = favoriteItems.length
+        ? `<div class="grid">${favoriteItems.map(item => renderTrialCard(item.map, item.mapIndex, item.trial)).join('')}</div>`
+        : `<div class="favorites-empty">No favorites yet. Star trials/challenges to build a playlist.</div>`;
+
+      contentEl.innerHTML = `
+        <div class="map-header">
+          <h2>Favorites</h2>
+          <span class="count">${countText}</span>
+        </div>
+        ${actions}
+        ${body}
+      `;
+
+      const selectedCardId = localStorage.getItem(SELECTED_FAVORITE_CARD_KEY);
+      if (selectedCardId) {
+        const selectedCard = contentEl.querySelector(`.trial[data-card-id="${CSS.escape(selectedCardId)}"]`);
+        if (selectedCard) selectedCard.classList.add('selected');
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function toggleFavorite(card) {
+      const cardId = card.dataset.cardId;
+      const favorites = getFavorites();
+
+      if (favorites.has(cardId)) favorites.delete(cardId);
+      else favorites.add(cardId);
+
+      saveFavorites(favorites);
+
+      if (activeView === 'favorites') {
+        if (favoritePlaylistOrder) {
+          favoritePlaylistOrder = favoritePlaylistOrder.filter(id => favorites.has(id));
+          saveFavoriteOrder(favoritePlaylistOrder);
+        }
+        renderFavorites(favoritePlaylistOrder);
+        return;
+      }
+
+      const button = card.querySelector('.favorite-toggle');
+      const nowFavorited = favorites.has(cardId);
+      if (button) {
+        button.classList.toggle('favorited', nowFavorited);
+        button.setAttribute('aria-pressed', nowFavorited ? 'true' : 'false');
+        button.setAttribute('aria-label', `${nowFavorited ? 'Remove from favorites' : 'Add to favorites'}: ${card.getAttribute('aria-label')}`);
+        button.title = nowFavorited ? 'Remove from favorites' : 'Add to favorites';
+        button.innerHTML = favoriteStarIcon(nowFavorited);
+      }
+    }
+
     function initTabs() {
       tabsEl.innerHTML = maps.map((entry, index) => `
         <button
@@ -1465,10 +1781,21 @@
           aria-selected="${index === 0 ? 'true' : 'false'}"
           data-index="${index}"
         >
-          ${entry.map === 'Television Studio' ? 'TV Studio' : entry.map === 'Shopping Mall' ? 'Mall' : entry.map === 'The Suburbs' ? 'Suburbs' : entry.map === 'Waste Tunnel' ? 'Escape' : entry.map === 'The Docks' ? 'Docks' : entry.map}
+          ${entry.map === 'Television Studio' ? 'TV Studio' : entry.map === 'Shopping Mall' ? 'Mall' : entry.map === 'The Suburbs' ? 'Suburbs' : entry.map === 'Waste Tunnel' ? 'Escape' : entry.map === 'The Docks' ? 'Docks' : escapeHtml(entry.map)}
         </button>
       `).join('') + `
         <div class="search-wrap">
+          <button
+            class="tab search-favorites-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            data-favorites="true"
+            aria-label="Favorites"
+            title="Favorites"
+          >
+            ${favoriteStarIcon(false)}
+          </button>
           <input
             id="trial-search"
             class="trial-search"
@@ -1627,28 +1954,77 @@
       document.addEventListener('pointerdown', event => {
         if (!event.target.closest('.search-wrap')) hideSuggestions();
       });
+
       tabsEl.addEventListener('click', event => {
-        const button = event.target.closest('button[data-index]');
+        const button = event.target.closest('button.tab');
         if (!button) return;
-        renderMap(Number(button.dataset.index));
-      });
-      tabsEl.addEventListener('keydown', event => {
-        const current = document.activeElement;
-        if (!current?.matches?.('button[data-index]')) return;
-        const currentIndex = Number(current.dataset.index);
-        let nextIndex = currentIndex;
-        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % maps.length;
-        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + maps.length) % maps.length;
-        if (event.key === 'Home') nextIndex = 0;
-        if (event.key === 'End') nextIndex = maps.length - 1;
-        if (nextIndex !== currentIndex) {
-          event.preventDefault();
-          const nextButton = tabsEl.querySelector(`button[data-index="${nextIndex}"]`);
-          nextButton.focus();
-          renderMap(nextIndex);
+
+        if (button.dataset.favorites === 'true') {
+          hideSuggestions();
+          renderFavorites(favoritePlaylistOrder);
+          return;
+        }
+
+        if (button.dataset.index !== undefined) {
+          renderMap(Number(button.dataset.index));
         }
       });
+
+      tabsEl.addEventListener('keydown', event => {
+        const current = document.activeElement;
+        if (!current?.matches?.('button.tab')) return;
+
+        const buttons = Array.from(tabsEl.querySelectorAll('button.tab'));
+        const currentIndex = buttons.indexOf(current);
+        if (currentIndex < 0) return;
+
+        let nextIndex = currentIndex;
+        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % buttons.length;
+        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + buttons.length) % buttons.length;
+        if (event.key === 'Home') nextIndex = 0;
+        if (event.key === 'End') nextIndex = buttons.length - 1;
+
+        if (nextIndex !== currentIndex) {
+          event.preventDefault();
+          const nextButton = buttons[nextIndex];
+          nextButton.focus();
+          if (nextButton.dataset.favorites === 'true') {
+            hideSuggestions();
+            renderFavorites(favoritePlaylistOrder);
+          } else {
+            renderMap(Number(nextButton.dataset.index));
+          }
+        }
+      });
+
       contentEl.addEventListener('click', event => {
+        const randomizeButton = event.target.closest('#randomize-favorites');
+        if (randomizeButton) {
+          const favorites = getFavorites();
+          const favoriteItems = getAllTrialItems().filter(item => favorites.has(item.cardId));
+          favoritePlaylistOrder = shuffleItems(favoriteItems).map(item => item.cardId);
+          saveFavoriteOrder(favoritePlaylistOrder);
+          renderFavorites(favoritePlaylistOrder);
+          return;
+        }
+
+        const resetOrderButton = event.target.closest('#reset-favorites-order');
+        if (resetOrderButton) {
+          favoritePlaylistOrder = null;
+          saveFavoriteOrder(null);
+          renderFavorites();
+          return;
+        }
+
+        const favoriteButton = event.target.closest('.favorite-toggle');
+        if (favoriteButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          const card = favoriteButton.closest('.trial');
+          if (card) toggleFavorite(card);
+          return;
+        }
+
         const card = event.target.closest('.trial');
         if (!card) return;
 
@@ -1658,17 +2034,19 @@
 
         card.classList.toggle('selected');
 
+        const selectionKey = activeView === 'favorites' ? SELECTED_FAVORITE_CARD_KEY : SELECTED_CARD_KEY;
+
         if (card.classList.contains('selected')) {
-          localStorage.setItem('outlast-selected-trial-card', card.dataset.cardId);
+          localStorage.setItem(selectionKey, card.dataset.cardId);
         } else {
-          localStorage.removeItem('outlast-selected-trial-card');
+          localStorage.removeItem(selectionKey);
         }
       });
 
       contentEl.addEventListener('keydown', event => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         const card = event.target.closest('.trial');
-        if (!card || event.target.closest('a')) return;
+        if (!card || event.target.closest('a') || event.target.closest('.favorite-toggle')) return;
         event.preventDefault();
         card.click();
       });
